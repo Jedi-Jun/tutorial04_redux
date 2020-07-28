@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.5/redux.min.js"></script>
+  <title></title>
+</head>
+<body>
+  <div id="subject"></div>
+  <div id="TOC"></div>
+  <div id="control"></div>
+  <div id="content"></div>
+  <script>
+    function findCurrentPage(state) {
+      var i = 0;
+      while(i < state.contents.length){
+        if(state.contents[i].id === state.selected_id){
+          return i;
+        }
+        i++;
+      }
+    }
+    function dispatchToState(_type, _mode, _id, event) {
+      event.preventDefault();
+      store.dispatch({type: _type, mode: _mode, selected_id: _id});
+    }
+    function subject() {
+      var state = store.getState();
+      document.getElementById('subject').innerHTML = `
+        <header>
+            <h1>
+              <a href="/main.html"
+                onclick="dispatchToState(
+                  'home',
+                  'welcome',
+                  'null',
+                   event)">
+                WEB
+              </a>
+            </h1>
+            Hello, Redux!
+        </header>
+        `;
+    }
+    function TOC() {
+      var state = store.getState();
+      var i = 0;
+      var list = '';
+      while (i < state.contents.length) {
+        list = list + `
+          <li>
+            <a href="${state.contents[i].id}"
+              onclick="dispatchToState(
+                'SELECT',
+                'read',
+                ${state.contents[i].id},
+                event)">
+              ${state.contents[i].title}
+            </a>
+          </li>
+          `;
+        i++;
+      }
+      document.getElementById('TOC').innerHTML = `
+        <nav>
+            <ol>
+                ${list}
+            </ol>
+        </nav>
+        `;
+    }
+    function dispatchToState(_type, _mode, _id, event) {
+      event.preventDefault();
+      store.dispatch({type: _type, mode: _mode, selected_id: _id});
+    }
+    function control() {
+      document.getElementById('control').innerHTML = `
+        <ul>
+            <li>
+              <a href="/create" onclick="
+                event.preventDefault();
+                store.dispatch({type:'CHANGE_CREATE', mode:'create'});
+              ">
+                create
+              </a>
+            </li>
+            <li>
+              <a href="/update" onclick="
+                event.preventDefault();
+                store.dispatch({type:'CHANGE_UPDATE', mode:'update'});
+              ">
+                update
+              </a>
+            </li>
+            <li>
+              <input type="button" value="delete"
+              onclick="
+                event.preventDefault();
+                store.dispatch({type:'DELETE'})
+              "/>
+            </li>
+        </ul>
+        `;
+    }
+    function content() {
+      var state = store.getState();
+      if (state.mode === 'welcome') {
+        var title = 'Welcome!';
+        var description = 'Welcome to Redux!';
+      } else if (state.mode === 'read') {
+          var id = findCurrentPage(state);
+          var title = state.contents[id].title;
+          var description = state.contents[id].desc;
+      } else if (state.mode === 'create') {
+          var title = 'CREATE'
+          var description = `
+            <form onsubmit="
+              event.preventDefault();
+              var _title = this.title.value;
+              var _desc = this.desc.value;
+              store.dispatch({
+                type: 'CREATE',
+                title: _title,
+                desc: _desc,
+                mode: 'welcome'
+              });
+            ">
+              <p><label>
+                Title:
+                <input type="text" name="title" placeholder="title"/>
+              </p></label>
+              <p><label>
+                Description: 
+                <textarea name="desc" placeholder="detail"></textarea>
+              </p></label>
+              <input type="submit" value="Submit" />
+            </form>
+          `;
+      } else if (state.mode === 'update') {
+          var id = findCurrentPage(state);
+          var title = 'UPDATE'
+          var description = `
+            <form onsubmit="
+              event.preventDefault();
+              var _title = this.title.value;
+              var _desc = this.desc.value;
+              store.dispatch({
+                type: 'UPDATE',
+                title: _title,
+                desc: _desc,
+                mode: 'read'
+              });
+            ">
+              <p><label>
+                Title:
+                <input type="text" name="title" value=${state.contents[id].title} />
+              </p></label>
+              <p><label>
+                Description: 
+                <textarea name="desc">${state.contents[id].desc}</textarea>
+              </p></label>
+              <input type="submit" value="Submit" />
+            </form>
+          `;
+      }
+      document.getElementById('content').innerHTML = `
+        <article>
+            <h1>${title}</h1>
+            ${description}
+        </article>
+        `;
+    }
+    function reducer(state, action) {
+      if (state === undefined || action.type === 'home') {
+        return {
+          mode: 'welcome',
+          selected_id: null,
+          contents: [
+            {id: 1, title: 'HTML', desc: 'HTML is...'},
+            {id: 2, title: 'CSS', desc: 'CSS is...'}
+          ]
+        };
+      } else if (action.type === 'SELECT') {
+          var newState = Object.assign({}, state, {mode: action.mode, selected_id: action.selected_id});
+      } else if (action.type === 'CHANGE_CREATE') {
+          var newState = Object.assign({}, state, {mode: action.mode});
+      } else if (action.type === 'CREATE') {
+          var maxId = state.contents.length;
+          var nextId = maxId + 1 ;
+          var _contents = state.contents.concat();
+          _contents.push({id:nextId, title: action.title, desc: action.desc});
+          var newState = Object.assign({}, state, {mode: action.mode, contents:_contents});
+      } else if (action.type === 'CHANGE_UPDATE') {
+          var newState = Object.assign({}, state, {mode: action.mode});
+      } else if (action.type === 'UPDATE') {
+          var id = findCurrentPage(state);
+          var _contents = state.contents.concat();
+          _contents[id] = {id:state.selected_id, title: action.title, desc: action.desc}; 
+          var newState = Object.assign({}, state, {mode: action.mode, contents: _contents});
+      } else if (action.type === 'DELETE') {
+          var id = findCurrentPage(state);
+          var _contents = state.contents.concat();
+          // array.splice(start[, deleteCount[, item1[, item2[, ...]]]])
+          _contents.splice(id, 1);
+          var newState = Object.assign({}, state, {mode: action.mode, contents:_contents});
+      }
+      console.log(state, action);
+      return newState;
+    }
+    var store = Redux.createStore(reducer);
+    store.subscribe(TOC);
+    store.subscribe(content);
+    subject();
+    TOC();
+    control();
+    content();
+  </script>
+</body>
+</html>
